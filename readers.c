@@ -655,6 +655,7 @@ int main()
 
     for (int i = 0; i < READER_COUNT; i++)
         thread_join(readers[i], NULL);
+    
     for (int i = 0; i < WRITER_COUNT; i++)
         thread_join(writers[i], NULL); 
 

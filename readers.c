@@ -17,6 +17,9 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#define READER_COUNT 100
+#define WRITER_COUNT 1
+
 /**
  * @brief Spin Lock object
  */
@@ -488,7 +491,7 @@ int thread_create(thread_t *t, void *routine, void *arg)
     }
     fa->stack = thread_stack;
     thread_t tid = clone(wrap, (char *) thread_stack + STACK_SZ + GUARD_SZ,
-                         CLONE_FLAGS, fa, &(EXP1), NULL, &(EXP2));
+                         CLONE_FLAGS, fa, &(node->tid), NULL, &(node->tid));
     node->tid_copy = tid;
     node->fa = fa;
 
@@ -605,7 +608,7 @@ static spin_t print_lock;
 
 static int n_readers = 0, n_readers_in = 0, n_writers_in = 0;
 
-static void f1(void)
+static void f1(void *arg)
 {
     mutex_acquire(&lock);
     if (++n_readers == 1)
@@ -623,7 +626,7 @@ static void f1(void)
     safe_printf(&print_lock, "Reader process out\n");
 }
 
-static void f2(void)
+static void f2(void *arg)
 {
     mutex_acquire(&rwlock);
     atomic_fetch_add(&n_writers_in, 1);
@@ -643,16 +646,17 @@ int main()
     atomic_init(&n_readers_in, 0);
     atomic_init(&n_writers_in, 0);
 
-    thread_t readers[5], writers[5];
-    for (int i = 0; i < 5; i++) {
+    thread_t readers[100], writers[1];
+    for (int i = 0; i < READER_COUNT; i++)
         thread_create(&readers[i], f1, NULL);
-        thread_create(&writers[i], f2, NULL);
-    }
 
-    for (int i = 0; i < 5; i++) {
-        thread_join(writers[i], NULL);
+    for (int i = 0; i < WRITER_COUNT; i++)
+        thread_create(&writers[i], f2, NULL);
+
+    for (int i = 0; i < READER_COUNT; i++)
         thread_join(readers[i], NULL);
-    }
+    for (int i = 0; i < WRITER_COUNT; i++)
+        thread_join(writers[i], NULL); 
 
     return 0;
 }
